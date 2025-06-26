@@ -11,16 +11,16 @@ router.post("/login", async (req, res) => {
   if (!username || !password) {
     return res
       .status(400)
-      .json({ message: "Username and password are required" });
+      .json({ message: "Korisničko ime i lozinka su obavezni parametri" });
   }
 
   try {
     const user = await User.findOne({ username });
-    if (!user) return res.status(401).json({ message: "Invalid credentials" });
+    if (!user) return res.status(401).json({ message: "Neispravni kredencijali" });
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch)
-      return res.status(401).json({ message: "Invalid credentials" });
+      return res.status(401).json({ message: "Neispravni kredencijali" });
 
     const token = jwt.sign(
       { userId: user._id, username: user.username },
@@ -31,7 +31,7 @@ router.post("/login", async (req, res) => {
     res.json({ token });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ message: "Greška na serveru" });
   }
 });
 
