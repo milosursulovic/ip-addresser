@@ -23,5 +23,5 @@ app.use("/api/auth", authRoutes);
 app.use("/api/protected", authenticateToken, protectedRoutes);
 
 app.listen(port, () => {
-  console.log(`Example app listening on port ${port}`);
+  console.log(`App listening on port ${port}`);
 });
