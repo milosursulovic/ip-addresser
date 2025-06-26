@@ -1,8 +1,12 @@
 import express from "express";
 import IpEntry from "../models/IpEntry.js";
 import { Parser } from "json2csv";
+import multer from "multer";
+import csv from "csv-parser";
+import fs from "fs";
 
 const router = express.Router();
+const upload = multer({ dest: "uploads/" });
 
 router.get("/", async (req, res) => {
   try {
@@ -141,6 +145,45 @@ router.get("/export", async (req, res) => {
     console.error("CSV Export error:", err);
     res.status(500).json({ message: "Greška pri izvozu CSV-a" });
   }
+});
+
+router.post("/import", upload.single("file"), async (req, res) => {
+  const filePath = req.file.path;
+
+  const results = [];
+  fs.createReadStream(filePath)
+    .pipe(csv())
+    .on("data", (data) => {
+      results.push(data);
+    })
+    .on("end", async () => {
+      try {
+        // Validate & clean
+        const entriesToInsert = results
+          .map((row) => ({
+            ip: row.ip?.trim(),
+            computerName: row.computerName?.trim() || "",
+            username: row.username?.trim() || "",
+            fullName: row.fullName?.trim() || "",
+            password: row.password?.trim() || "",
+            rdp: row.rdp?.trim() || "",
+          }))
+          .filter((e) => e.ip); // Remove empty IPs
+
+        const inserted = await IpEntry.insertMany(entriesToInsert, {
+          ordered: false,
+        });
+
+        fs.unlinkSync(filePath); // cleanup
+        res
+          .status(200)
+          .json({ message: "Import uspešan", count: inserted.length });
+      } catch (err) {
+        console.error("CSV import error:", err);
+        fs.unlinkSync(filePath);
+        res.status(500).json({ message: "Greška pri importu CSV-a" });
+      }
+    });
 });
 
 export default router;
