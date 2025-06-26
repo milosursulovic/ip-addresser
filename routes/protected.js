@@ -1,8 +1,8 @@
-import express from 'express'
+import express from "express";
 import ipAddressesRoutes from "./ipAddresses.js";
 
-const router = express.Router()
+const router = express.Router();
 
-router.use('/ip-addresses', ipAddressesRoutes);
+router.use("/ip-addresses", ipAddressesRoutes);
 
-export default router
+export default router;

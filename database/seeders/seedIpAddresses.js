@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 import dotenv from "dotenv";
-import IpEntry from "../models/IpEntry.js";
+import IpEntry from "../../models/IpEntry.js";
 
 dotenv.config();
 
@@ -180,7 +180,7 @@ const dummyData = [
     fullName: "User Twenty",
     password: "Password123!",
     rdp: "Ima",
-  }
+  },
 ];
 
 async function seed() {

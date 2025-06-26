@@ -16,7 +16,8 @@ router.post("/login", async (req, res) => {
 
   try {
     const user = await User.findOne({ username });
-    if (!user) return res.status(401).json({ message: "Neispravni kredencijali" });
+    if (!user)
+      return res.status(401).json({ message: "Neispravni kredencijali" });
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch)

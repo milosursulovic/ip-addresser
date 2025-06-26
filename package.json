@@ -6,8 +6,9 @@
   "scripts": {
     "start": "node index",
     "dev": "nodemon index",
-    "seed:user": "node ./scripts/seedUser.js",
-    "seed:ip": "node ./scripts/seedIpAddresses.js",
+    "migrate": "node ./database/migrations.js",
+    "seed:user": "node ./database/seeders/seedUser.js",
+    "seed:ip": "node ./database/seeders/seedIpAddresses.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
