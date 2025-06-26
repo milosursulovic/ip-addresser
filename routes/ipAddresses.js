@@ -1,5 +1,6 @@
 import express from "express";
 import IpEntry from "../models/IpEntry.js";
+import { Parser } from "json2csv";
 
 const router = express.Router();
 
@@ -102,6 +103,43 @@ router.delete("/:id", async (req, res) => {
   } catch (err) {
     console.error("Error deleting IP entry:", err);
     res.status(500).json({ message: "Greška na serveru" });
+  }
+});
+
+router.get("/export", async (req, res) => {
+  try {
+    const { search = "" } = req.query;
+
+    const query = {
+      $or: [
+        { ip: { $regex: search, $options: "i" } },
+        { computerName: { $regex: search, $options: "i" } },
+        { username: { $regex: search, $options: "i" } },
+        { fullName: { $regex: search, $options: "i" } },
+        { rdp: { $regex: search, $options: "i" } },
+      ],
+    };
+
+    const entries = await IpEntry.find(query).sort({ ipNumeric: 1 });
+
+    const fields = [
+      "ip",
+      "computerName",
+      "username",
+      "fullName",
+      "password",
+      "rdp",
+    ];
+    const opts = { fields };
+    const parser = new Parser(opts);
+    const csv = parser.parse(entries);
+
+    res.setHeader("Content-Disposition", "attachment; filename=ip-entries.csv");
+    res.setHeader("Content-Type", "text/csv");
+    res.status(200).send(csv);
+  } catch (err) {
+    console.error("CSV Export error:", err);
+    res.status(500).json({ message: "Greška pri izvozu CSV-a" });
   }
 });
 
