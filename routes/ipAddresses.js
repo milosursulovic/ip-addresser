@@ -25,7 +25,9 @@ router.get('/', async (req, res) => {
 
     const total = await IpEntry.countDocuments(query)
 
-    res.json({ entries, total })
+    const totalPages = total % limit === 0 ? total % limit : (total % limit) + 1;
+
+    res.json({ entries, total, totalPages })
   } catch (err) {
     console.error('Error fetching IP addresses:', err)
     res.status(500).json({ message: 'Greška na serveru' })
