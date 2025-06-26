@@ -25,7 +25,7 @@ router.get('/', async (req, res) => {
 
     const total = await IpEntry.countDocuments(query)
 
-    const totalPages = total % limit === 0 ? total % limit : (total % limit) + 1;
+    const totalPages = Math.ceil(total / parseInt(limit));
 
     res.json({ entries, total, totalPages })
   } catch (err) {
