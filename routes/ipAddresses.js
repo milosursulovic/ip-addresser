@@ -5,13 +5,33 @@ const router = express.Router()
 
 router.get('/', async (req, res) => {
   try {
-    const entries = await IpEntry.find()
-    res.json(entries)
+    const { search = '', page = 1, limit = 10 } = req.query
+
+    const query = {
+      $or: [
+        { ip: { $regex: search, $options: 'i' } },
+        { computerName: { $regex: search, $options: 'i' } },
+        { username: { $regex: search, $options: 'i' } },
+        { fullName: { $regex: search, $options: 'i' } },
+        { rdp: { $regex: search, $options: 'i' } }
+      ]
+    }
+
+    const skip = (parseInt(page) - 1) * parseInt(limit)
+
+    const entries = await IpEntry.find(query)
+      .skip(skip)
+      .limit(parseInt(limit))
+
+    const total = await IpEntry.countDocuments(query)
+
+    res.json({ entries, total })
   } catch (err) {
     console.error('Error fetching IP addresses:', err)
     res.status(500).json({ message: 'Greška na serveru' })
   }
 })
+
 
 router.post('/', async (req, res) => {
   const { ip, computerName, username, fullName, password, rdp } = req.body
