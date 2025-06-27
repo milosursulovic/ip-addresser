@@ -39,5 +39,5 @@ app.use("/api/auth", authRoutes);
 app.use("/api/protected", authenticateToken, protectedRoutes);
 
 https.createServer(sslOptions, app).listen(port, "0.0.0.0", () => {
-  console.log(`🚀 Express HTTPS server running at https://10.230.62.81:${port}`);
+  console.log(`🚀 Express HTTPS server running at https://0.0.0.0:${port}`);
 });
