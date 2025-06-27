@@ -186,4 +186,33 @@ router.post("/import", upload.single("file"), async (req, res) => {
     });
 });
 
+router.get("/available", async (req, res) => {
+  try {
+    const occupiedEntries = await IpEntry.find({}, "ipNumeric");
+
+    const occupiedSet = new Set(occupiedEntries.map((e) => e.ipNumeric));
+
+    const ipToNumeric = (ip) =>
+      ip.split(".").reduce((acc, octet) => (acc << 8) + parseInt(octet), 0);
+
+    const numericToIp = (num) =>
+      [24, 16, 8, 0].map((shift) => (num >> shift) & 255).join(".");
+
+    const start = ipToNumeric("10.230.62.1");
+    const end = ipToNumeric("10.230.63.254");
+
+    const availableIps = [];
+    for (let i = start; i <= end; i++) {
+      if (!occupiedSet.has(i)) {
+        availableIps.push(numericToIp(i));
+      }
+    }
+
+    res.json({ available: availableIps });
+  } catch (err) {
+    console.error("Greška pri dohvatanju slobodnih IP adresa:", err);
+    res.status(500).json({ message: "Greška na serveru" });
+  }
+});
+
 export default router;
