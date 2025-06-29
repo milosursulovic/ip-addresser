@@ -4,6 +4,7 @@ import { Parser } from "json2csv";
 import multer from "multer";
 import csv from "csv-parser";
 import fs from "fs";
+import XLSX from "xlsx";
 
 const router = express.Router();
 const upload = multer({ dest: "uploads/" });
@@ -128,12 +129,14 @@ router.get("/export", async (req, res) => {
 
     const fields = [
       "ip",
+      "ipNumeric",
       "computerName",
       "username",
       "fullName",
       "password",
       "rdp",
     ];
+
     const opts = { fields };
     const parser = new Parser(opts);
     const csv = parser.parse(entries);
@@ -147,43 +150,113 @@ router.get("/export", async (req, res) => {
   }
 });
 
+router.get("/export-xlsx", async (req, res) => {
+  try {
+    const { search = "" } = req.query;
+
+    const query = {
+      $or: [
+        { ip: { $regex: search, $options: "i" } },
+        { computerName: { $regex: search, $options: "i" } },
+        { username: { $regex: search, $options: "i" } },
+        { fullName: { $regex: search, $options: "i" } },
+        { rdp: { $regex: search, $options: "i" } },
+      ],
+    };
+
+    const entries = await IpEntry.find(query).sort({ ipNumeric: 1 });
+
+    const data = entries.map((entry) => ({
+      ip: entry.ip,
+      ipNumeric: entry.ipNumeric,
+      computerName: entry.computerName,
+      username: entry.username,
+      fullName: entry.fullName,
+      password: entry.password,
+      rdp: entry.rdp,
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "IP Adrese");
+
+    const buffer = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" });
+
+    res.setHeader(
+      "Content-Disposition",
+      "attachment; filename=ip-entries.xlsx"
+    );
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+    res.status(200).send(buffer);
+  } catch (err) {
+    console.error("Greška pri izvozu XLSX:", err);
+    res.status(500).json({ message: "Greška pri izvozu XLSX-a" });
+  }
+});
+
 router.post("/import", upload.single("file"), async (req, res) => {
   const filePath = req.file.path;
+  const ext = req.file.originalname.split(".").pop().toLowerCase();
 
-  const results = [];
-  fs.createReadStream(filePath)
-    .pipe(csv())
-    .on("data", (data) => {
-      results.push(data);
-    })
-    .on("end", async () => {
-      try {
-        // Validate & clean
-        const entriesToInsert = results
-          .map((row) => ({
-            ip: row.ip?.trim(),
-            computerName: row.computerName?.trim() || "",
-            username: row.username?.trim() || "",
-            fullName: row.fullName?.trim() || "",
-            password: row.password?.trim() || "",
-            rdp: row.rdp?.trim() || "",
-          }))
-          .filter((e) => e.ip); // Remove empty IPs
+  try {
+    let results = [];
 
-        const inserted = await IpEntry.insertMany(entriesToInsert, {
-          ordered: false,
+    if (ext === "csv") {
+      const csvRows = fs.readFileSync(filePath, "utf8").split("\n");
+      const headers = csvRows[0]
+        .split(",")
+        .map((h) => h.trim().replace(/^"|"$/g, ""));
+      for (let i = 1; i < csvRows.length; i++) {
+        const row = csvRows[i].split(",");
+        if (row.length !== headers.length) continue;
+        const obj = {};
+        headers.forEach((key, index) => {
+          const cleanKey = key.replace(/^"|"$/g, "");
+          const value = row[index]?.trim().replace(/^"|"$/g, "");
+          obj[cleanKey] = value;
         });
-
-        fs.unlinkSync(filePath); // cleanup
-        res
-          .status(200)
-          .json({ message: "Import uspešan", count: inserted.length });
-      } catch (err) {
-        console.error("CSV import error:", err);
-        fs.unlinkSync(filePath);
-        res.status(500).json({ message: "Greška pri importu CSV-a" });
+        results.push(obj);
       }
+    } else if (ext === "xlsx") {
+      const workbook = XLSX.readFile(filePath);
+      const sheetName = workbook.SheetNames[0];
+      const sheet = workbook.Sheets[sheetName];
+      results = XLSX.utils.sheet_to_json(sheet);
+    } else {
+      return res.status(400).json({
+        message: "Nepodržan format. Samo .csv i .xlsx su dozvoljeni.",
+      });
+    }
+
+    console.log(results)
+
+    const entriesToInsert = results
+      .map((row) => ({
+        ip: row.ip?.trim(),
+        ipNumeric: row.ipNumeric,
+        computerName: row.computerName?.trim() || "",
+        username: row.username?.trim() || "",
+        fullName: row.fullName?.trim() || "",
+        password: row.password?.trim() || "",
+        rdp: row.rdp?.trim() || "",
+      }))
+      .filter((e) => e.ip);
+
+    const inserted = await IpEntry.insertMany(entriesToInsert, {
+      ordered: false,
     });
+
+    fs.unlinkSync(filePath);
+    res.status(200).json({ message: "Import uspešan", count: inserted.length });
+  } catch (err) {
+    console.log("ovde");
+    console.error("Import error:", err);
+    fs.unlinkSync(filePath);
+    res.status(500).json({ message: "Greška pri importu" });
+  }
 });
 
 router.get("/available", async (req, res) => {
