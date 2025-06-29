@@ -231,8 +231,6 @@ router.post("/import", upload.single("file"), async (req, res) => {
       });
     }
 
-    console.log(results)
-
     const entriesToInsert = results
       .map((row) => ({
         ip: row.ip?.trim(),
